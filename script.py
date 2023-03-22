@@ -1,5 +1,6 @@
 from pathlib import Path
 import pandas as pd
+from functools import partial
 
 import torch
 from torch.optim import SGD, Adam
@@ -20,9 +21,10 @@ from oml.samplers.balance import BalanceSampler
 from oml.transforms.images.albumentations.transforms import get_augs_albu, get_normalisation_resize_albu
 
 from src.hyper_triplet import HypTripletLossWithMiner
+from src.hyptorch import pmath
 
 seed_everything(1)
-# logger = WandbLogger(project='metric-learning')
+logger = WandbLogger(project='metric-learning')
 
 import warnings
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
@@ -62,6 +64,7 @@ criterion = HypTripletLossWithMiner(c=0.2, margin=0.1, miner=HardTripletsMiner()
 metric_callback = MetricValCallback(
     metric=EmbeddingMetrics(
         cmc_top_k=(1,5), 
+        distance=partial(pmath.dist, c=criterion.c, keepdim=True)
     )
 )
 optimizer = Adam(model.parameters(), lr=1e-5)
@@ -69,7 +72,7 @@ optimizer = Adam(model.parameters(), lr=1e-5)
 pl_model = RetrievalModule(model, criterion, optimizer)
 trainer = Trainer(
     max_epochs=100,
-    # logger=logger,
+    logger=logger,
     callbacks=[metric_callback],
     num_sanity_val_steps=0,
     accumulate_grad_batches=10,
