@@ -3,7 +3,6 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-# from torch.nn import Module
 
 from oml.functional.losses import get_reduced
 from oml.interfaces.criterions import ITripletLossWithMiner
@@ -12,8 +11,8 @@ from oml.miners.cross_batch import TripletMinerWithMemory
 from oml.miners.inbatch_all_tri import AllTripletsMiner
 # from oml.utils.misc_torch import elementwise_dist
 
-from .hyptorch import pmath
-from .hyptorch.nn import ToPoincare
+from src.distances import hyper_elementwise_dist
+from src.hyptorch.nn import ToPoincare
 
 
 TLogs = Dict[str, float]
@@ -69,8 +68,8 @@ class HypTripletLoss(nn.Module):
         """
         assert anchor.shape == positive.shape == negative.shape
 
-        positive_dist = pmath.dist(anchor, positive, c=self.c, keepdim=True)
-        negative_dist = pmath.dist(anchor, negative, c=self.c, keepdim=True)
+        positive_dist = hyper_elementwise_dist(anchor, positive, c=self.c)
+        negative_dist = hyper_elementwise_dist(anchor, negative, c=self.c)
 
         loss = torch.relu(self.margin + positive_dist - negative_dist)
 
