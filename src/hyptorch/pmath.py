@@ -8,7 +8,7 @@ import torch
 from scipy.special import gamma
 
 
-def tanh(x, clamp=15):
+def tanh(x, clamp: float = 15.0):
     return x.clamp(-clamp, clamp).tanh()
 
 
@@ -68,7 +68,8 @@ def arsinh(x):
     return Arsinh.apply(x)
 
 
-def arcosh(x, eps=1e-5):  # pragma: no cover
+@torch.jit.script
+def arcosh(x, eps: float = 1e-5):  # pragma: no cover
     x = x.clamp(-1 + eps, 1 - eps)
     return torch.log(x + torch.sqrt(1 + x) * torch.sqrt(x - 1))
 
@@ -95,6 +96,7 @@ def project(x, *, c=1.0):
     return _project(x, c)
 
 
+@torch.jit.script
 def _project(x, c):
     norm = torch.clamp_min(x.norm(dim=-1, keepdim=True, p=2), 1e-5)
     maxnorm = (1 - 1e-3) / (c ** 0.5)
@@ -125,6 +127,7 @@ def lambda_x(x, *, c=1.0, keepdim=False):
     return _lambda_x(x, c, keepdim=keepdim)
 
 
+@torch.jit.script
 def _lambda_x(x, c, keepdim: bool = False):
     return 2 / (1 - c * x.pow(2).sum(-1, keepdim=keepdim))
 
@@ -168,6 +171,7 @@ def mobius_add(x, y, *, c=1.0):
     return _mobius_add(x, y, c)
 
 
+@torch.jit.script
 def _mobius_add(x, y, c):
     x2 = x.pow(2).sum(dim=-1, keepdim=True)
     y2 = y.pow(2).sum(dim=-1, keepdim=True)
@@ -202,6 +206,7 @@ def dist(x, y, *, c=1.0, keepdim=False):
     return _dist(x, y, c, keepdim=keepdim)
 
 
+@torch.jit.script
 def _dist(x, y, c, keepdim: bool = False):
     sqrt_c = c ** 0.5
     dist_c = artanh(sqrt_c * _mobius_add(-x, y, c).norm(dim=-1, p=2, keepdim=keepdim))
@@ -228,6 +233,7 @@ def dist0(x, *, c=1.0, keepdim=False):
     return _dist0(x, c, keepdim=keepdim)
 
 
+@torch.jit.script
 def _dist0(x, c, keepdim: bool = False):
     sqrt_c = c ** 0.5
     dist_c = artanh(sqrt_c * x.norm(dim=-1, p=2, keepdim=keepdim))
@@ -265,6 +271,7 @@ def expmap(x, u, *, c=1.0):
     return _expmap(x, u, c)
 
 
+@torch.jit.script
 def _expmap(x, u, c):  # pragma: no cover
     sqrt_c = c ** 0.5
     u_norm = torch.clamp_min(u.norm(dim=-1, p=2, keepdim=True), 1e-5)
@@ -297,6 +304,7 @@ def expmap0(u, *, c=1.0):
     return _expmap0(u, c)
 
 
+@torch.jit.script
 def _expmap0(u, c):
     sqrt_c = c ** 0.5
     u_norm = torch.clamp_min(u.norm(dim=-1, p=2, keepdim=True), 1e-5)
@@ -331,6 +339,7 @@ def logmap(x, y, *, c=1.0):
     return _logmap(x, y, c)
 
 
+@torch.jit.script
 def _logmap(x, y, c):  # pragma: no cover
     sub = _mobius_add(-x, y, c)
     sub_norm = sub.norm(dim=-1, p=2, keepdim=True)
@@ -362,6 +371,7 @@ def logmap0(y, *, c=1.0):
     return _logmap0(y, c)
 
 
+@torch.jit.script
 def _logmap0(y, c):
     sqrt_c = c ** 0.5
     y_norm = torch.clamp_min(y.norm(dim=-1, p=2, keepdim=True), 1e-5)
@@ -392,6 +402,7 @@ def mobius_matvec(m, x, *, c=1.0):
     return _mobius_matvec(m, x, c)
 
 
+@torch.jit.script
 def _mobius_matvec(m, x, c):
     x_norm = torch.clamp_min(x.norm(dim=-1, keepdim=True, p=2), 1e-5)
     sqrt_c = c ** 0.5
@@ -404,25 +415,17 @@ def _mobius_matvec(m, x, c):
     return _project(res, c)
 
 
-def _tensor_dot(x, y):
-    res = torch.einsum("ij,kj->ik", (x, y))
-    return res
-
-
+@torch.jit.script
 def _mobius_addition_batch(x, y, c):
-    xy = _tensor_dot(x, y)  # B x C
-    x2 = x.pow(2).sum(-1, keepdim=True)  # B x 1
-    y2 = y.pow(2).sum(-1, keepdim=True)  # C x 1
-    num = 1 + 2 * c * xy + c * y2.permute(1, 0)  # B x C
-    num = num.unsqueeze(2) * x.unsqueeze(1)
-    num = num + (1 - c * x2).unsqueeze(2) * y  # B x C x D
-    denom_part1 = 1 + 2 * c * xy  # B x C
-    denom_part2 = c ** 2 * x2 * y2.permute(1, 0)
-    denom = denom_part1 + denom_part2
-    res = num / (denom.unsqueeze(2) + 1e-5)
-    return res
+    xy = torch.matmul(x, y.permute(1,0))  # N x M
+    x2 = x.pow(2).sum(-1, keepdim=True)  # N x 1
+    y2 = y.pow(2).sum(-1, keepdim=True)  # M x 1
+    num = (1 + 2 * c * xy + c * y2.permute(1, 0)).unsqueeze(2) * x.unsqueeze(1) + (1 - c * x2).unsqueeze(2) * y  # N x M x D
+    denom = 1 + 2 * c * xy + c ** 2 * x2 * y2.permute(1, 0)
+    return num / (denom.unsqueeze(2) + 1e-5)
 
 
+@torch.jit.script
 def _hyperbolic_softmax(X, A, P, c):
     lambda_pkc = 2 / (1 - c * P.pow(2).sum(dim=1))
     k = lambda_pkc * torch.norm(A, dim=1) / torch.sqrt(c)
@@ -433,17 +436,19 @@ def _hyperbolic_softmax(X, A, P, c):
     return logit.permute(1, 0)
 
 
+@torch.jit.script
 def p2k(x, c):
     denom = 1 + c * x.pow(2).sum(-1, keepdim=True)
     return 2 * x / denom
 
 
+@torch.jit.script
 def k2p(x, c):
     denom = 1 + torch.sqrt(1 - c * x.pow(2).sum(-1, keepdim=True))
     return x / denom
 
 
-def lorenz_factor(x, *, c=1.0, dim=-1, keepdim=False):
+def lorenz_factor(x, *, c=1.0, dim: int = -1, keepdim: bool = False):
     """
 
     Parameters
@@ -465,7 +470,7 @@ def lorenz_factor(x, *, c=1.0, dim=-1, keepdim=False):
     return 1 / torch.sqrt(1 - c * x.pow(2).sum(dim=dim, keepdim=keepdim))
 
 
-def poincare_mean(x, dim=0, c=1.0):
+def poincare_mean(x, dim: int = 0, c: float = 1.0):
     x = p2k(x, c)
     lamb = lorenz_factor(x, c=c, keepdim=True)
     mean = torch.sum(lamb * x, dim=dim, keepdim=True) / torch.sum(
@@ -475,13 +480,14 @@ def poincare_mean(x, dim=0, c=1.0):
     return mean.squeeze(dim)
 
 
+@torch.jit.script
 def _dist_matrix(x, y, c):
-    sqrt_c = c ** 0.5
-    return (
-        2
-        / sqrt_c
-        * artanh(sqrt_c * torch.norm(_mobius_addition_batch(-x, y, c=c), dim=-1))
-    )
+    n = x.shape[0]
+    m = y.shape[0]
+    inner = torch.empty((n, m), device=x.device)
+    for i in range(n):
+        inner[i, :] = torch.linalg.norm(_mobius_add(x[i].unsqueeze(0), y, c), dim=-1)
+    return 2 / torch.sqrt(c) * artanh(torch.sqrt(c) * inner)
 
 
 def dist_matrix(x, y, c=1.0):

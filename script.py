@@ -21,7 +21,7 @@ from oml.models.resnet import ResnetExtractor
 from oml.samplers.balance import BalanceSampler
 from oml.transforms.images.albumentations.transforms import get_augs_albu, get_normalisation_resize_albu
 
-# from src.hyper_triplet import HypTripletLossWithMiner
+from src.hyper_triplet import HypTripletLossWithMiner
 from src.distances import HyperbolicDistance
 
 seed_everything(1)
@@ -62,7 +62,7 @@ model: nn.Module = torch.compile(model)
 # run
 # criterion = TripletLossWithMiner(margin=0.1, miner=HardTripletsMiner())
 distance = HyperbolicDistance(c=0.2)
-criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=HardTripletsMiner())
+criterion = HypTripletLossWithMiner(distance=distance, margin=0.1, miner=HardTripletsMiner())
 metric_callback = MetricValCallback(
     metric=EmbeddingMetrics(
         cmc_top_k=(1,5), 
@@ -84,4 +84,3 @@ trainer = Trainer(
 
 if __name__ == '__main__':
     trainer.fit(pl_model, pl_data)
-
