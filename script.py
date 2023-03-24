@@ -1,8 +1,9 @@
 from pathlib import Path
+from itertools import chain
 import pandas as pd
-from functools import partial
 
 import torch
+import torch.nn as nn
 from torch.optim import SGD, Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning import LightningDataModule, Trainer, seed_everything
@@ -20,8 +21,8 @@ from oml.models.resnet import ResnetExtractor
 from oml.samplers.balance import BalanceSampler
 from oml.transforms.images.albumentations.transforms import get_augs_albu, get_normalisation_resize_albu
 
-from src.hyper_triplet import HypTripletLossWithMiner
-from src.hyptorch import pmath
+# from src.hyper_triplet import HypTripletLossWithMiner
+from src.distances import HyperbolicDistance
 
 seed_everything(1)
 logger = WandbLogger(project='metric-learning')
@@ -45,29 +46,30 @@ class DataModule(LightningDataModule):
         self.batch_sampler = BalanceSampler(self.train_dataset.get_labels(), n_labels=2, n_instances=10)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_sampler=self.batch_sampler)
+        return DataLoader(self.train_dataset, batch_sampler=self.batch_sampler, num_workers=2)
     
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=256)
+        return DataLoader(self.val_dataset, batch_size=256, num_workers=2)
 
 
-dataset_root = Path('/content/data/stanford_cars/')
+dataset_root = Path('/content/term-paper/data/stanford_cars/')
 pl_data = DataModule(dataset_root)
 
 # model = ResnetExtractor('resnet50_moco_v2', arch='resnet50', normalise_features=False, remove_fc=True, gem_p=1)
 model = ViTExtractor('vits8_dino', arch='vits8', normalise_features=False)
-model = torch.compile(model)
+model: nn.Module = torch.compile(model)
 
 # run
 # criterion = TripletLossWithMiner(margin=0.1, miner=HardTripletsMiner())
-criterion = HypTripletLossWithMiner(c=0.2, margin=0.1, miner=HardTripletsMiner())
+distance = HyperbolicDistance(c=0.2)
+criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=HardTripletsMiner())
 metric_callback = MetricValCallback(
     metric=EmbeddingMetrics(
         cmc_top_k=(1,5), 
-        distance=partial(pmath.dist, c=criterion.c, keepdim=True)
+        distance=distance
     )
 )
-optimizer = Adam(model.parameters(), lr=1e-5)
+optimizer = Adam(chain(model.parameters(), criterion.parameters()), lr=1e-5)
 
 pl_model = RetrievalModule(model, criterion, optimizer)
 trainer = Trainer(
