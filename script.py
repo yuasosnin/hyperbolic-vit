@@ -1,13 +1,12 @@
 from pathlib import Path
-from itertools import chain
 import pandas as pd
 
 import torch
 import torch.nn as nn
-from torch.optim import SGD, Adam
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 from pytorch_lightning import LightningDataModule, Trainer, seed_everything
-from pytorch_lightning.loggers import NeptuneLogger, WandbLogger
+from pytorch_lightning.loggers import WandbLogger
 
 from oml.datasets.base import DatasetQueryGallery, DatasetWithLabels
 from oml.lightning.modules.retrieval import RetrievalModule
@@ -17,11 +16,10 @@ from oml.metrics.embeddings import EmbeddingMetrics
 from oml.miners.inbatch_all_tri import AllTripletsMiner
 from oml.miners.inbatch_hard_tri import HardTripletsMiner
 from oml.models.vit.vit import ViTExtractor
-from oml.models.resnet import ResnetExtractor
 from oml.samplers.balance import BalanceSampler
 from oml.transforms.images.albumentations.transforms import get_augs_albu, get_normalisation_resize_albu
 
-from src.hyper_triplet import HypTripletLossWithMiner
+from src.hyptorch.nn import ToPoincare
 from src.distances import HyperbolicDistance
 
 seed_everything(1)
@@ -49,27 +47,28 @@ class DataModule(LightningDataModule):
         return DataLoader(self.train_dataset, batch_sampler=self.batch_sampler, num_workers=2)
     
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=256, num_workers=2)
+        return DataLoader(self.val_dataset, batch_size=128, num_workers=2)
 
 
 dataset_root = Path('/content/term-paper/data/stanford_cars/')
 pl_data = DataModule(dataset_root)
 
-# model = ResnetExtractor('resnet50_moco_v2', arch='resnet50', normalise_features=False, remove_fc=True, gem_p=1)
-model = ViTExtractor('vits8_dino', arch='vits8', normalise_features=False)
+distance = HyperbolicDistance(c=1, train_c=False)
+model = nn.Sequential(
+    ViTExtractor('vits8_dino', arch='vits8', normalise_features=True),
+    ToPoincare(distance.c, train_c=False)
+)
 model: nn.Module = torch.compile(model)
 
 # run
-# criterion = TripletLossWithMiner(margin=0.1, miner=HardTripletsMiner())
-distance = HyperbolicDistance(c=0.2)
-criterion = HypTripletLossWithMiner(distance=distance, margin=0.1, miner=HardTripletsMiner())
+criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=HardTripletsMiner())
 metric_callback = MetricValCallback(
     metric=EmbeddingMetrics(
         cmc_top_k=(1,5), 
         distance=distance
     )
 )
-optimizer = Adam(chain(model.parameters(), criterion.parameters()), lr=1e-5)
+optimizer = Adam(model.parameters(), lr=1e-5)
 
 pl_model = RetrievalModule(model, criterion, optimizer)
 trainer = Trainer(
