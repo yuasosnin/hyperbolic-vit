@@ -20,7 +20,9 @@ from oml.samplers.balance import BalanceSampler
 from oml.transforms.images.albumentations.transforms import get_augs_albu, get_normalisation_resize_albu
 
 from src.hyptorch.nn import ToPoincare
-from src.distances import HyperbolicDistance
+from oml.distances import EucledianDistance
+from src.distances import HyperbolicDistance, SphericalDistance
+from src.layers import Normalize
 
 seed_everything(1)
 logger = WandbLogger(project='metric-learning')
@@ -53,18 +55,20 @@ class DataModule(LightningDataModule):
 dataset_root = Path('/content/term-paper/data/stanford_cars/')
 pl_data = DataModule(dataset_root)
 
-distance = HyperbolicDistance(c=1, train_c=False)
+distance = HyperbolicDistance(c=1.0, train_c=False)
 model = nn.Sequential(
-    ViTExtractor('vits8_dino', arch='vits8', normalise_features=True),
+    ViTExtractor(arch='vits8', weights='vits8_dino'),
+    # Normalize(),
     ToPoincare(distance.c, train_c=False)
 )
 model: nn.Module = torch.compile(model)
 
-# run
 criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=HardTripletsMiner())
 metric_callback = MetricValCallback(
     metric=EmbeddingMetrics(
         cmc_top_k=(1,5), 
+        precision_top_k=(1,5),
+        map_top_k=(1,5),
         distance=distance
     )
 )
