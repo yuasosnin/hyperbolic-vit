@@ -3,8 +3,8 @@ Implementation of various mathematical operations in the Poincare ball model of 
 functions are based on the implementation in https://github.com/geoopt/geoopt (copyright by Maxim Kochurov).
 """
 
-import numpy as np
 import torch
+from torch import Tensor
 from scipy.special import gamma
 
 
@@ -426,12 +426,12 @@ def _mobius_addition_batch(x, y, c):
 
 
 @torch.jit.script
-def _hyperbolic_softmax(X, A, P, c):
+def _hyperbolic_softmax(X: Tensor, A: Tensor, P: Tensor, c):
     lambda_pkc = 2 / (1 - c * P.pow(2).sum(dim=1))
-    k = lambda_pkc * torch.norm(A, dim=1) / torch.sqrt(c)
+    k = lambda_pkc * A.norm(p=2, dim=1) / torch.sqrt(c)
     mob_add = _mobius_addition_batch(-P, X, c)
     num = 2 * torch.sqrt(c) * torch.sum(mob_add * A.unsqueeze(1), dim=-1)
-    denom = torch.norm(A, dim=1, keepdim=True) * (1 - c * mob_add.pow(2).sum(dim=2))
+    denom = A.norm(p=2, dim=1, keepdim=True) * (1 - c * mob_add.pow(2).sum(dim=2))
     logit = k.unsqueeze(1) * arsinh(num / denom)
     return logit.permute(1, 0)
 
@@ -486,7 +486,8 @@ def _dist_matrix(x, y, c):
     m = y.shape[0]
     inner = torch.empty((n, m), device=x.device)
     for i in range(n):
-        inner[i, :] = torch.linalg.norm(_mobius_add(-x[i].unsqueeze(0), y, c), dim=-1)
+        x_i = x[i].unsqueeze(0)
+        inner[i, :] = _mobius_add(-x_i, y, c).norm(p=2, dim=-1)
     return 2 / torch.sqrt(c) * artanh(torch.sqrt(c) * inner)
 
 
@@ -501,7 +502,7 @@ def auto_select_c(d):
     such that the d-dimensional ball has constant volume equal to pi
     """
     dim2 = d / 2.0
-    R = gamma(dim2 + 1) / (np.pi ** (dim2 - 1))
+    R = gamma(dim2 + 1) / (torch.pi ** (dim2 - 1))
     R = R ** (1 / float(d))
     c = 1 / (R ** 2)
     return c

@@ -152,7 +152,7 @@ class ToPoincare(nn.Module):
 
     def forward(self, x):
         if self.clip_r is not None:
-            x_norm = torch.norm(x, dim=-1, keepdim=True) + 1e-5
+            x_norm = x.norm(p=2, dim=-1, keepdim=True) + 1e-5
             fac =  torch.minimum(
                 torch.ones_like(x_norm), 
                 self.clip_r / x_norm
@@ -205,5 +205,3 @@ class FromPoincare(nn.Module):
 
     def extra_repr(self):
         return "train_c={}, train_x={}".format(self.train_c, self.train_x)
-    
-    
