@@ -417,7 +417,7 @@ def _mobius_matvec(m, x, c):
 
 @torch.jit.script
 def _mobius_addition_batch(x, y, c):
-    xy = torch.matmul(x, y.permute(1,0))  # N x M
+    xy = x @ torch.transpose(y, 0, 1)  # N x M
     x2 = x.pow(2).sum(-1, keepdim=True)  # N x 1
     y2 = y.pow(2).sum(-1, keepdim=True)  # M x 1
     num = (1 + 2 * c * xy + c * y2.permute(1, 0)).unsqueeze(2) * x.unsqueeze(1) + (1 - c * x2).unsqueeze(2) * y  # N x M x D
@@ -486,7 +486,7 @@ def _dist_matrix(x, y, c):
     m = y.shape[0]
     inner = torch.empty((n, m), device=x.device)
     for i in range(n):
-        inner[i, :] = torch.linalg.norm(_mobius_add(x[i].unsqueeze(0), y, c), dim=-1)
+        inner[i, :] = torch.linalg.norm(_mobius_add(-x[i].unsqueeze(0), y, c), dim=-1)
     return 2 / torch.sqrt(c) * artanh(torch.sqrt(c) * inner)
 
 
