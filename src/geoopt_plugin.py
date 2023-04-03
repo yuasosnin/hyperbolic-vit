@@ -9,6 +9,7 @@ from geoopt import Manifold
 
 class ManifoldDistance(IDistance):
     def __init__(self, manifold: Manifold):
+        super().__init__()
         self.manifold = manifold
 
     def elementwise(self, x1: Tensor, x2: Tensor) -> Tensor:
@@ -30,4 +31,4 @@ class ManifoldProjection(nn.Module):
         self.manifold = manifold
 
     def forward(self, x):
-        return self.manifold.projx(self.manifold.expmap(x))
+        return self.manifold.projx(self.manifold.expmap0(x))

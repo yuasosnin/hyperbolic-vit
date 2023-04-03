@@ -7,7 +7,7 @@ from oml.interfaces.distances import IDistance
 from src.hyptorch import pmath
 
 
-class HyperbolicDistance(IDistance, nn.Module):
+class HyperbolicDistance(IDistance):
     def __init__(self, c: float, train_c: bool = True):
         super().__init__()
         self.c = nn.Parameter(torch.tensor([float(c)]), requires_grad=train_c)
