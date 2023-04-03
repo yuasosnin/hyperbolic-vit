@@ -26,6 +26,7 @@ class ManifoldDistance(IDistance):
 
 class ManifoldProjection(nn.Module):
     def __init__(self, manifold: Manifold):
+        super().__init__()
         self.manifold = manifold
 
     def forward(self, x):
