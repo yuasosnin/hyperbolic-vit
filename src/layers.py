@@ -21,6 +21,7 @@ class Normalize(nn.Module):
 
 class LorentzProjection(nn.Module):
     def __init__(self, c: float, train_c: bool = False):
+        super().__init__()
         self.c = nn.Parameter(torch.tensor([float(c)]), requires_grad=train_c)
 
     def forward(self, x):
