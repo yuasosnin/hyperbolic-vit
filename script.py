@@ -1,5 +1,4 @@
 from pathlib import Path
-import pandas as pd
 
 import torch
 import torch.nn as nn
@@ -17,11 +16,8 @@ from oml.models.vit.vit import ViTExtractor
 from oml.distances import EucledianDistance
 
 from src.data import DataModule
-from src.hyptorch.nn import ToPoincare
-from src.distances import HyperbolicDistance, SphericalDistance
-from src.layers import Normalize
-from src.geoopt_plugin import ManifoldDistance, ManifoldProjection
-from geoopt import PoincareBall, Lorentz
+from src.distances import PoincareBallDistance, LorentzDistance
+from src.layers import Normalize, PoincareBallProjection, LorentzProjection
 
 seed_everything(1)
 logger = WandbLogger(project='metric-learning')
@@ -33,14 +29,11 @@ warnings.filterwarnings("ignore", ".*does not have many workers.*")
 dataset_root = Path('/content/term-paper/data/stanford_cars/')
 pl_data = DataModule(dataset_root)
 
-manifold = PoincareBall(c=1.0, learnable=False)
-# distance = HyperbolicDistance(c=1.0, train_c=False)
-distance = ManifoldDistance(manifold)
+distance = LorentzDistance(c=1.0, train_c=False)
 model = nn.Sequential(
     ViTExtractor(arch='vits8', weights='vits8_dino'),
     # Normalize(),
-    # ToPoincare(distance.c, train_c=False)
-    ManifoldProjection(manifold)
+    LorentzProjection(distance.c, train_c=False)
 )
 model: nn.Module = torch.compile(model)
 
