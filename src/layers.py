@@ -21,7 +21,7 @@ class Normalize(nn.Module):
         return x / norm
 
 
-def clip_eucledian(x, r=1.0):
+def clip_embedding(x, r=1.0):
     x_norm = x.norm(p=2, dim=-1, keepdim=True) + 1e-5
     coefficient = torch.minimum(torch.ones_like(x_norm), r / x_norm)
     return x * coefficient
@@ -35,14 +35,9 @@ class PoincareBallProjection(nn.Module):
 
     def forward(self, x):
         if self.clip_r is not None:
-            x = clip_eucledian(x, self.clip_r)
+            x = clip_embedding(x, self.clip_r)
         out = pmath.project(pmath.expmap0(x, c=self.c), c=self.c)
-        out.register_hook(partial(self._riemannian_gradient_scale, t=out))
-        return out
-    
-    def _riemannian_gradient_scale(self, grad, t) -> Tensor:
-        scale = (1 - self.c * t.pow(2).sum(-1, keepdim=True)).pow(2) / 4
-        return grad * scale
+        return pmath.riemannian_gradient(x, c=self.c)
 
 
 class LorentzProjection(nn.Module):
