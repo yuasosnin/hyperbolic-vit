@@ -29,11 +29,10 @@ warnings.filterwarnings("ignore", ".*does not have many workers.*")
 dataset_root = Path('/content/term-paper/data/stanford_cars/')
 pl_data = DataModule(dataset_root)
 
-distance = LorentzDistance(c=1.0, train_c=False)
+distance = PoincareBallDistance(c=1.0, train_c=False)
 model = nn.Sequential(
     ViTExtractor(arch='vits8', weights='vits8_dino'),
-    # Normalize(),
-    LorentzProjection(distance.c, train_c=False)
+    PoincareBallProjection(distance.c, clip_r=1.0)
 )
 model: nn.Module = torch.compile(model)
 
