@@ -33,7 +33,7 @@ class CARS196DataModule(LightningDataModule):
             df_train, dataset_root=dataset_root, transform=get_augs_albu(im_size=224))
         self.val_dataset = DatasetQueryGallery(
             df_val, dataset_root=dataset_root, transform=get_normalisation_resize_albu(im_size=224))
-        self.test_datset = DatasetQueryGallery(
+        self.test_dataset = DatasetQueryGallery(
             df_test, dataset_root=dataset_root, transform=get_normalisation_resize_albu(im_size=224))
         self.batch_sampler = BalanceSampler(
             self.train_dataset.get_labels(), n_labels=n_labels, n_instances=n_instances)

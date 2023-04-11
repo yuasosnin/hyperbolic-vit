@@ -60,3 +60,4 @@ trainer = Trainer(
 
 if __name__ == "__main__":
     trainer.fit(pl_model, pl_data)
+    trainer.validate(pl_model, pl_data.test_dataloader())
