@@ -26,8 +26,8 @@ import warnings
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
 
 
-dataset_root = "/content/term-paper/data/CARS196"
-pl_data = CARS196DataModule(dataset_root)
+data_folder = "/content/term-paper/data"
+pl_data = CARS196DataModule(data_folder)
 
 distance = PoincareBallDistance(c=1.0, train_c=False)
 model = nn.Sequential(

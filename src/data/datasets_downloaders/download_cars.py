@@ -7,9 +7,10 @@ URL = "http://ai.stanford.edu/~jkrause/car196/"
 URL_DEVKIT = "https://ai.stanford.edu/~jkrause/cars/"
 
 
-def download_cars(root_dir='data/'):
+def download_cars(root_dir="data"):
     root_dir = Path(root_dir)
     data_dir = "CARS196"
+    (root_dir / data_dir).mkdir(parents=True, exist_ok=True)
 
     urllib.request.urlretrieve(URL_DEVKIT + "car_devkit.tgz", root_dir / "car_devkit.tgz")
     urllib.request.urlretrieve(URL + "cars_train.tgz", root_dir / "cars_train.tgz")

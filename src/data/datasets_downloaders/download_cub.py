@@ -6,8 +6,9 @@ import tarfile
 URL = "https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz?download=1"
 
 
-def download_cub(root_dir='data'):
+def download_cub(root_dir="data"):
     root_dir = Path(root_dir)
+    root_dir.mkdir(parents=True, exist_ok=True)
 
     urllib.request.urlretrieve(URL, root_dir / "CUB_200_2011.tgz")
     with tarfile.open(root_dir / "CUB_200_2011.tgz") as tar:
