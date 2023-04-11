@@ -55,7 +55,8 @@ trainer = Trainer(
     num_sanity_val_steps=0,
     accumulate_grad_batches=10,
     accelerator="auto", 
-    precision=16
+    precision=16,
+    inference_mode=False,
 )
 
 if __name__ == "__main__":
