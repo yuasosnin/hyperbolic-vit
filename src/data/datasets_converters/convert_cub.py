@@ -61,6 +61,8 @@ def build_cub_df(dataset_root: Path, no_bboxes: bool = False) -> pd.DataFrame:
 
     df = ft.reduce(lambda left, right: pd.merge(left, right, on="image_id"), [images, bbs, class_labels, split])
 
+    df["class_id"] = df["class_id"].astype(int)
+    
     df["x_1"] = df["x"].apply(int)  # left
     df["x_2"] = (df["x"] + df["width"]).apply(int)  # right
     df["y_2"] = (df["y"] + df["height"]).apply(int)  # bot
