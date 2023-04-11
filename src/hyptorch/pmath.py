@@ -22,7 +22,7 @@ class RiemannianGradient(torch.autograd.Function):
     def backward(ctx, grad_output):
         (x, c) = ctx.saved_tensors
         scale = (1 - c * x.pow(2).sum(-1, keepdim=True)).pow(2) / 4
-        return grad_output * scale
+        return grad_output * scale, None
     
 
 def riemannian_gradient(x, c):
