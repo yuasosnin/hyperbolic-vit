@@ -35,7 +35,7 @@ def construct_df(annots: Dict[str, np.ndarray], meta: pd.DataFrame, path_to_imgs
     return annots
 
 
-def build_cars196_df(dataset_root: Path, no_bboxes: bool) -> pd.DataFrame:
+def build_cars196_df(dataset_root: Path, no_bboxes: bool = False) -> pd.DataFrame:
     dataset_root = Path(dataset_root)
 
     cars_meta = dataset_root / "devkit" / "cars_meta.mat"

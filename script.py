@@ -15,28 +15,28 @@ from oml.miners.inbatch_hard_tri import HardTripletsMiner
 from oml.models.vit.vit import ViTExtractor
 from oml.distances import EucledianDistance
 
-from src.data import DataModule
+from src.data import CARS196DataModule
 from src.distances import PoincareBallDistance, LorentzDistance
 from src.layers import Normalize, PoincareBallProjection, LorentzProjection
 
 seed_everything(1)
-logger = WandbLogger(project='metric-learning')
+logger = WandbLogger(project="metric-learning")
 
 import warnings
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
 
 
-dataset_root = Path('/content/term-paper/data/stanford_cars/')
-pl_data = DataModule(dataset_root)
+dataset_root = "/content/term-paper/data/CARS196"
+pl_data = CARS196DataModule(dataset_root)
 
 distance = PoincareBallDistance(c=1.0, train_c=False)
 model = nn.Sequential(
-    ViTExtractor(arch='vits8', weights='vits8_dino'),
+    ViTExtractor(arch="vits8", weights="vits8_dino"),
     PoincareBallProjection(distance.c, clip_r=1.0)
 )
 model: nn.Module = torch.compile(model)
 
-criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=HardTripletsMiner())
+criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=AllTripletsMiner())
 metric_callback = MetricValCallback(
     metric=EmbeddingMetrics(
         cmc_top_k=(1,5), 
@@ -54,9 +54,9 @@ trainer = Trainer(
     callbacks=[metric_callback],
     num_sanity_val_steps=0,
     accumulate_grad_batches=10,
-    accelerator='auto', 
+    accelerator="auto", 
     precision=16
 )
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     trainer.fit(pl_model, pl_data)
