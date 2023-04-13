@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 from geoopt.manifolds.lorentz import math as hmath
 from src.hyptorch import pmath
+from src.hyptorch import pmath2
 
 
 class Normalize(nn.Module):
@@ -36,7 +37,7 @@ class PoincareBallProjection(nn.Module):
     def forward(self, x):
         if self.clip_r is not None:
             x = clip_embedding(x, self.clip_r)
-        x_p = pmath.project(pmath.expmap0(x, c=self.c), c=self.c)
+        x_p = pmath2.exponential_map(x, c=self.c)
         return pmath.riemannian_gradient(x_p, c=self.c)
 
 

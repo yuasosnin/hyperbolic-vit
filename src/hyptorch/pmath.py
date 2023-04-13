@@ -437,13 +437,8 @@ def poincare_mean(x, dim: int = 0, c: float = 1.0):
 
 @torch.jit.script
 def _dist_matrix(x, y, c):
-    n = x.shape[0]
-    m = y.shape[0]
-    inner = torch.empty((n, m), device=x.device)
-    for i in range(n):
-        x_i = x[i].unsqueeze(0)
-        inner[i, :] = _mobius_add(-x_i, y, c).norm(p=2, dim=-1)
-    return 2 / torch.sqrt(c) * torch.arctanh(torch.sqrt(c) * inner)
+    sqrt_c = c ** 0.5
+    return (2 / sqrt_c * torch.arctanh(sqrt_c * _mobius_addition_batch(-x, y, c=c).norm(dim=-1)))
 
 
 def dist_matrix(x, y, c=1.0):
