@@ -36,8 +36,8 @@ class PoincareBallProjection(nn.Module):
     def forward(self, x):
         if self.clip_r is not None:
             x = clip_embedding(x, self.clip_r)
-        out = pmath.project(pmath.expmap0(x, c=self.c), c=self.c)
-        return pmath.riemannian_gradient(x, c=self.c)
+        x_p = pmath.project(pmath.expmap0(x, c=self.c), c=self.c)
+        return pmath.riemannian_gradient(x_p, c=self.c)
 
 
 class LorentzProjection(nn.Module):
