@@ -70,10 +70,10 @@ class MetricLearningDataModule(LightningDataModule, ABC):
 
 class CARS196DataModule(MetricLearningDataModule):
     def __init__(
-        self, datsaet_root, n_labels=2, n_instances=10, batch_size=128, num_workers=2
+            self, datsaet_root, n_labels=2, n_instances=10, batch_size=128, num_workers=2
         ):
         super().__init__(
-            datsaet_root, 
+            datsaet_root + "/CARS196", 
             num_classes=196, 
             n_labels=n_labels, 
             n_instances=n_instances, 
@@ -90,10 +90,10 @@ class CARS196DataModule(MetricLearningDataModule):
 
 class CUB200DataModule(LightningDataModule):
     def __init__(
-        self, datsaet_root, n_labels=2, n_instances=10, batch_size=128, num_workers=2
+            self, datsaet_root, n_labels=2, n_instances=10, batch_size=128, num_workers=2
         ):
         super().__init__(
-            datsaet_root, 
+            datsaet_root + "/CUB_200_2011", 
             num_classes=200, 
             n_labels=n_labels, 
             n_instances=n_instances, 
