@@ -116,3 +116,11 @@ def exponential_map(x: Tensor, c: Tensor, u: Optional[Tensor] = None, safe: bool
     if safe:
         x_p = pmath._project(x_p, c)
     return x_p
+
+def logarithmic_map(x: Tensor, c: Tensor, u: Optional[Tensor] = None, safe: bool = True):
+    c = torch.as_tensor(c).type_as(x)
+    if u is None:
+        x_p = pmath._logmap0(x, c)
+    else:
+        x_p = pmath._logmap(x, u, c)
+    return x_p
