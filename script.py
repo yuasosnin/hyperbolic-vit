@@ -1,4 +1,4 @@
-from pathlib import Path
+import platform
 
 import torch
 import torch.nn as nn
@@ -15,50 +15,67 @@ from oml.miners.inbatch_hard_tri import HardTripletsMiner
 from oml.models.vit.vit import ViTExtractor
 from oml.distances import EucledianDistance
 
-from src.data import CARS196DataModule
-from src.distances import PoincareBallDistance, LorentzDistance
-from src.layers import Normalize, PoincareBallProjection, LorentzProjection
+from geoopt.optim import RiemannianAdam
 
-seed_everything(1)
-logger = WandbLogger(project="metric-learning")
+from src.data import CARS196DataModule
+from src.hyptorch import ExponentialMap, PoincareBall
+from src.oml.distances import PoincareBallDistance
+from src.oml.extractor import HViTExtractor
 
 import warnings
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
 
 
-data_folder = "/content/term-paper/data"
-pl_data = CARS196DataModule(data_folder)
+def get_trainer(epochs, distance):
+    logger = WandbLogger(project="metric-learning")
+    metric_callback = MetricValCallback(
+        metric=EmbeddingMetrics(
+            cmc_top_k=(1,5),
+            precision_top_k=(1,5),
+            map_top_k=(1,5),
+            distance=distance))
+    trainer = Trainer(
+        max_epochs=epochs,
+        logger=logger,
+        callbacks=[metric_callback],
+        num_sanity_val_steps=0,
+        accumulate_grad_batches=10,
+        accelerator="auto",
+        precision=16,
+        inference_mode=False)
+    return trainer
 
-distance = PoincareBallDistance(c=1.0, train_c=False)
-model = nn.Sequential(
-    ViTExtractor(arch="vits8", weights="vits8_dino"),
-    PoincareBallProjection(distance.c, clip_r=1.0)
-)
-model: nn.Module = torch.compile(model)
+def get_data(n_labels, n_instances, num_workers=0, batch_size=16):
+    data_folder = "./data"
+    return CARS196DataModule(
+        data_folder,
+        n_labels=n_labels,
+        n_instances=n_instances,
+        batch_size=batch_size,
+        num_workers=num_workers)
 
-criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=AllTripletsMiner())
-metric_callback = MetricValCallback(
-    metric=EmbeddingMetrics(
-        cmc_top_k=(1,5), 
-        precision_top_k=(1,5),
-        map_top_k=(1,5),
-        distance=distance
+def get_model():
+    manifold = PoincareBall(c=1.0)
+    distance = PoincareBallDistance(manifold)
+    model = nn.Sequential(
+        HViTExtractor(arch="hvits16", weights="vits16_dino", strict_load=False),
+        # ViTExtractor(arch="vits16", weights="vits16_dino"),
+        # nn.Linear(384, 64, bias=False),
+        # ExponentialMap(manifold)
     )
-)
-optimizer = Adam(model.parameters(), lr=1e-5)
+    if platform.system() == "Linux":
+        model: nn.Module = torch.compile(model)
+    criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=AllTripletsMiner())
+    optimizer = RiemannianAdam(model.parameters(), lr=1e-5)
 
-pl_model = RetrievalModule(model, criterion, optimizer)
-trainer = Trainer(
-    max_epochs=100,
-    logger=logger,
-    callbacks=[metric_callback],
-    num_sanity_val_steps=0,
-    accumulate_grad_batches=10,
-    accelerator="auto", 
-    precision=16,
-    inference_mode=False,
-)
+    return RetrievalModule(model, criterion, optimizer), distance
 
 if __name__ == "__main__":
+    seed_everything(1)
+
+    pl_data = get_data(n_labels=5, n_instances=20, num_workers=0, batch_size=256)
+    pl_model, distance = get_model()
+    trainer = get_trainer(epochs=100, distance=distance)
+
     trainer.fit(pl_model, pl_data)
     trainer.validate(pl_model, pl_data.test_dataloader())
