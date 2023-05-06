@@ -1,0 +1,4 @@
+torch>=2.0.0
+pytorch_lightning>=2.0.0
+geoopt==0.5.0
+git+https://github.com/yuasosnin/open-metric-learning.git@version-bump

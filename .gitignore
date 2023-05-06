@@ -1,8 +1,9 @@
 __pycache__/
 metric-learning/
 lightning_logs/
-/data/
+data/
 wandb/
 neptune_api
 __*
 !__init__.py
+*.ckpt

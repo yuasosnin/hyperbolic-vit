@@ -2,7 +2,7 @@ import platform
 
 import torch
 import torch.nn as nn
-from torch.optim import Adam
+from torch.optim import AdamW
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import WandbLogger
 
@@ -57,12 +57,12 @@ def get_data(n_labels, n_instances, num_workers=0, batch_size=16):
 def get_model():
     manifold = PoincareBall(c=1.0)
     distance = PoincareBallDistance(manifold)
-    model = nn.Sequential(
-        HViTExtractor(arch="hvits16", weights="vits16_dino", strict_load=False),
-        # ViTExtractor(arch="vits16", weights="vits16_dino"),
-        # nn.Linear(384, 64, bias=False),
-        # ExponentialMap(manifold)
-    )
+    # model = nn.Sequential(
+    #     ViTExtractor(arch="vits16", weights="vits16_dino"),
+    #     nn.Linear(384, 64, bias=False),
+    #     ExponentialMap(manifold)
+    # )
+    model = HViTExtractor(arch="hvits16", weights="vits16_dino", strict_load=False)
     if platform.system() == "Linux":
         model: nn.Module = torch.compile(model)
     criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=AllTripletsMiner())
