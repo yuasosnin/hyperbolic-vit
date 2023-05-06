@@ -89,7 +89,7 @@ class CARS196DataModule(MetricLearningDataModule):
         return build_cars196_df(self.dataset_root)
 
 
-class CUB200DataModule(LightningDataModule):
+class CUB200DataModule(MetricLearningDataModule):
     def __init__(
             self, datsaet_root, n_labels=2, n_instances=10, batch_size=128, num_workers=2
         ):

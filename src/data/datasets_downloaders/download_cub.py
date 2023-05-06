@@ -13,10 +13,8 @@ def download_cub(root_dir="data"):
     urllib.request.urlretrieve(URL, root_dir / "CUB_200_2011.tgz")
     with tarfile.open(root_dir / "CUB_200_2011.tgz") as tar:
         tar.extractall(root_dir)
-    with tarfile.open(root_dir / "CUB_200_2011.tar") as tar:
-        tar.extractall(root_dir)
+
     os.remove(root_dir / "CUB_200_2011.tgz")
-    os.remove(root_dir / "CUB_200_2011.tar")
     os.remove(root_dir / "attributes.txt")
 
 
