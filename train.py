@@ -34,7 +34,7 @@ def get_trainer(epochs, distance):
             precision_top_k=(1,5),
             map_top_k=(1,5),
             distance=distance))
-    trainer = Trainer(
+    return Trainer(
         max_epochs=epochs,
         logger=logger,
         callbacks=[metric_callback],
@@ -43,8 +43,8 @@ def get_trainer(epochs, distance):
         accumulate_grad_batches=10,
         accelerator="auto",
         precision=16,
-        inference_mode=False)
-    return trainer
+        inference_mode=False,
+    )
 
 def get_data(n_labels, n_instances, num_workers=0, batch_size=16):
     data_folder = "./data"

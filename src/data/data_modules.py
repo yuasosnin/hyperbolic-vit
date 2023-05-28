@@ -62,7 +62,7 @@ class MetricLearningDataModule(LightningDataModule, ABC):
             df_test = df.loc[df["label"] > train_val_idx]
             return df_train, df_val, df_test
         else:
-            raise ValueError("Method {} not supported".format(method))
+            raise ValueError(f"Method {method} not supported")
 
     def train_dataloader(self):
         return DataLoader(
@@ -88,13 +88,14 @@ class CARS196DataModule(MetricLearningDataModule):
             num_workers=2
         ):
         super().__init__(
-            datsaet_root + "/CARS196",
+            f"{datsaet_root}/CARS196",
             num_classes=196,
             n_labels=n_labels,
             n_instances=n_instances,
             val_size=val_size,
             batch_size=batch_size,
-            num_workers=num_workers)
+            num_workers=num_workers,
+        )
 
     def build_data_frame(self):
         if not (self.dataset_root / "devkit").exists():
@@ -116,13 +117,14 @@ class CUB200DataModule(MetricLearningDataModule):
             num_workers=2
         ):
         super().__init__(
-            datsaet_root + "/CUB_200_2011",
+            f"{datsaet_root}/CUB_200_2011",
             num_classes=200,
             n_labels=n_labels,
             n_instances=n_instances,
             val_size=val_size,
             batch_size=batch_size,
-            num_workers=num_workers)
+            num_workers=num_workers,
+        )
 
     def build_data_frame(self):
         if not (self.dataset_root / "images").exists():
