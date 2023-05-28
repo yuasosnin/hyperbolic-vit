@@ -15,11 +15,20 @@ from .datasets_downloaders import download_cars, download_cub
 
 class MetricLearningDataModule(LightningDataModule, ABC):
     def __init__(
-            self, dataset_root, num_classes, n_labels=2, n_instances=10, batch_size=128, num_workers=2):
+            self,
+            dataset_root,
+            num_classes,
+            n_labels=2,
+            n_instances=10,
+            val_size=0.1,
+            batch_size=128,
+            num_workers=2
+        ):
         super().__init__()
 
         self.dataset_root = Path(dataset_root).absolute()
         self.num_classes = num_classes
+        self.val_size = val_size
         self.batch_size = batch_size
         self.num_workers = num_workers
 
@@ -43,11 +52,11 @@ class MetricLearningDataModule(LightningDataModule, ABC):
         if method == "default":
             df_train = df.loc[df["split"] == "train"]
             df_test = df.loc[df["split"] == "validation"]
-            df_train, df_val = train_test_split(df_train, test_size=0.1)
+            df_train, df_val = train_test_split(df_train, test_size=self.val_size)
             return df_train, df_val, df_test
         elif method == "by_class":
             train_val_idx = self.num_classes // 2
-            train_idx = train_val_idx - round(train_val_idx * 0.1)
+            train_idx = train_val_idx - round(train_val_idx * self.val_size)
             df_train = df.loc[df["label"] <= train_idx]
             df_val = df.loc[(train_idx < df["label"]) & (df["label"] <= train_val_idx)]
             df_test = df.loc[df["label"] > train_val_idx]
@@ -70,13 +79,20 @@ class MetricLearningDataModule(LightningDataModule, ABC):
 
 class CARS196DataModule(MetricLearningDataModule):
     def __init__(
-            self, datsaet_root, n_labels=2, n_instances=10, batch_size=128, num_workers=2
+            self,
+            datsaet_root,
+            n_labels=2,
+            n_instances=10,
+            val_size=0.0,
+            batch_size=128,
+            num_workers=2
         ):
         super().__init__(
             datsaet_root + "/CARS196",
             num_classes=196,
             n_labels=n_labels,
             n_instances=n_instances,
+            val_size=val_size,
             batch_size=batch_size,
             num_workers=num_workers)
 
@@ -91,13 +107,20 @@ class CARS196DataModule(MetricLearningDataModule):
 
 class CUB200DataModule(MetricLearningDataModule):
     def __init__(
-            self, datsaet_root, n_labels=2, n_instances=10, batch_size=128, num_workers=2
+            self,
+            datsaet_root,
+            n_labels=2,
+            n_instances=10,
+            val_size=0.0,
+            batch_size=128,
+            num_workers=2
         ):
         super().__init__(
             datsaet_root + "/CUB_200_2011",
             num_classes=200,
             n_labels=n_labels,
             n_instances=n_instances,
+            val_size=val_size,
             batch_size=batch_size,
             num_workers=num_workers)
 
