@@ -38,6 +38,7 @@ def get_trainer(epochs, distance):
         max_epochs=epochs,
         logger=logger,
         callbacks=[metric_callback],
+        check_val_every_n_epoch=5,
         num_sanity_val_steps=0,
         accumulate_grad_batches=10,
         accelerator="auto",
@@ -73,9 +74,12 @@ def get_model():
 if __name__ == "__main__":
     seed_everything(1)
 
-    pl_data = get_data(n_labels=5, n_instances=20, num_workers=0, batch_size=256)
+    pl_data = get_data(n_labels=5, n_instances=20, num_workers=0, batch_size=512)
     pl_model, distance = get_model()
     trainer = get_trainer(epochs=100, distance=distance)
 
-    trainer.fit(pl_model, pl_data)
-    trainer.validate(pl_model, pl_data.test_dataloader())
+    trainer.fit(
+        pl_model,
+        train_dataloaders=pl_data.train_dataloader(),
+        val_dataloaders=pl_data.test_dataloader()
+    )
