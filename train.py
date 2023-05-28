@@ -55,7 +55,7 @@ def get_data(n_labels, n_instances, num_workers=0, batch_size=16):
         num_workers=num_workers)
 
 def get_model():
-    manifold = PoincareBall(c=1.0)
+    manifold = PoincareBall(c=1.0, clip_factor=None)
     distance = PoincareBallDistance(manifold)
     # model = nn.Sequential(
     #     ViTExtractor(arch="vits16", weights="vits16_dino"),

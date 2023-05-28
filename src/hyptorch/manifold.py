@@ -9,6 +9,10 @@ import src.hyptorch.pmath as pmath2
 
 
 class PoincareBall(_PoincareBall):
+    def __init__(self, c=1.0, learnable=False, clip_factor=None):
+        super().__init__(c=c, learnable=learnable)
+        self.clip_factor = clip_factor
+
     def beta_split(self, x, n: int):
         # https://github.com/mil-tokyo/hyperbolic_nn_plusplus/blob/main/geoopt_plusplus/modules/linear.py
         """
@@ -33,7 +37,7 @@ class PoincareBall(_PoincareBall):
         betas = beta(d/2, 1/2) / beta((d/n)/2, 1/2)
         x_e = self.logmap0(x).reshape(*dims, d)  # -1, D
         return self.expmap0(betas * x_e)
-    
+
     # def mobius_add(self, x: Tensor, y: Tensor, *, dim=-1, project=True) -> Tensor:
     #     res = pmath2.mobius_add(x, y, k=self.k)
     #     if project:
@@ -47,14 +51,29 @@ class PoincareBall(_PoincareBall):
     #         return pmath.project(res, k=self.k)
     #     else:
     #         return res
-    
+
     def weighted_midpoint(self, xs, weights, *, posweight=False, project=True):
         mid = pmath2.weighted_midpoint(xs, self.k, weights, posweight=posweight)
         if project:
             return pmath.project(mid, k=self.k, dim=-1)
         else:
             return mid
-    
+
     def dist(self, x, y, dim=-1, keepdim: bool = False):
         return 2 / torch.sqrt(-self.k) * torch.arctanh(
             torch.sqrt(-self.k) * pmath2._mobius_add_norm(-x, y, self.k))
+
+    def clip_radius(self, x):
+        x_norm = torch.norm(x, dim=-1, keepdim=True) + 1e-5
+        fac =  torch.minimum(torch.ones_like(x_norm), self.clip_factor / x_norm)
+        return x * fac
+
+    def expmap(self, x, u, project=True, dim=-1):
+        if self.clip_factor is not None:
+            u = self.clip_radius(u)
+        return super().expmap(x, u, project=project, dim=dim)
+
+    def expmap0(self, u, project=True, dim=-1):
+        if self.clip_factor is not None:
+            u = self.clip_radius(u)
+        return super().expmap0(u, dim=dim, project=project)
