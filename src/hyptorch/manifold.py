@@ -70,10 +70,10 @@ class PoincareBall(_PoincareBall):
 
     def expmap(self, x, u, project=True, dim=-1):
         if self.clip_factor is not None:
-            u = self.clip_radius(u, self.clip_factor)
+            u = self.clip_radius(u)
         return super().expmap(x, u, project=project, dim=dim)
 
     def expmap0(self, u, project=True, dim=-1):
         if self.clip_factor is not None:
-            u = self.clip_radius(u, self.clip_factor)
+            u = self.clip_radius(u)
         return super().expmap0(u, dim=dim, project=project)
