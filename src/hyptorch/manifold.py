@@ -54,10 +54,7 @@ class PoincareBall(_PoincareBall):
 
     def weighted_midpoint(self, xs, weights, *, posweight=False, project=True):
         mid = pmath2.weighted_midpoint(xs, self.k, weights, posweight=posweight)
-        if project:
-            return pmath.project(mid, k=self.k, dim=-1)
-        else:
-            return mid
+        return pmath.project(mid, k=self.k, dim=-1) if project else mid
 
     def dist(self, x, y, dim=-1, keepdim: bool = False):
         return 2 / torch.sqrt(-self.k) * torch.arctanh(
