@@ -9,6 +9,10 @@ import src.hyptorch.pmath as pmath2
 
 
 class PoincareBall(_PoincareBall):
+    def __init__(self, c=1.0, learnable=False, clip_factor=None):
+        super().__init__(c=c, learnable=learnable)
+        self.clip_factor = clip_factor
+
     def beta_split(self, x, n: int):
         # https://github.com/mil-tokyo/hyperbolic_nn_plusplus/blob/main/geoopt_plusplus/modules/linear.py
         """
@@ -59,25 +63,17 @@ class PoincareBall(_PoincareBall):
         return 2 / torch.sqrt(-self.k) * torch.arctanh(
             torch.sqrt(-self.k) * pmath2._mobius_add_norm(-x, y, self.k))
 
-    def clip_radius(self, x, clip_factor=1.0):
+    def clip_radius(self, x):
         x_norm = torch.norm(x, dim=-1, keepdim=True) + 1e-5
-        fac =  torch.minimum(torch.ones_like(x_norm), clip_factor / x_norm)
+        fac =  torch.minimum(torch.ones_like(x_norm), self.clip_factor / x_norm)
         return x * fac
 
-    def expmap(self, x, u, clip_factor=None, project=True, dim=-1):
-        if clip_factor is not None:
-            u = self.clip_radius(u, clip_factor)
-        res = pmath.expmap(x, u, k=self.k, dim=dim)
-        if project:
-            return pmath.project(res, k=self.k, dim=dim)
-        else:
-            return res
+    def expmap(self, x, u, project=True, dim=-1):
+        if self.clip_factor is not None:
+            u = self.clip_radius(u, self.clip_factor)
+        return super().expmap(x, u, project=project, dim=dim)
 
-    def expmap0(self, u, clip_factor=None, dim=-1, project=True):
-        if clip_factor is not None:
-            u = self.clip_radius(u, clip_factor)
-        res = pmath.expmap0(u, k=self.k, dim=dim)
-        if project:
-            return pmath.project(res, k=self.k, dim=dim)
-        else:
-            return res
+    def expmap0(self, u, project=True, dim=-1):
+        if self.clip_factor is not None:
+            u = self.clip_radius(u, self.clip_factor)
+        return super().expmap0(u, dim=dim, project=project)
