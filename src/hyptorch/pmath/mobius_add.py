@@ -69,7 +69,8 @@ class MobiusAdd(torch.autograd.Function):
 
 
 def mobius_add(x: Tensor, y: Tensor, k: Tensor) -> Tensor:
-    return MobiusAdd.apply(x, y, k)
+    return _mobius_add(x, y, k)
+    # return MobiusAdd.apply(x, y, k)
 
 
 @torch.jit.script
@@ -82,7 +83,8 @@ def _mobius_add_norm(x: Tensor, y: Tensor, k: Tensor, keepdim: bool = False) -> 
     beta = 1 + k * x2
     denom = (1 - 2 * k * xy + k**2 * x2 * y2).clamp_min(1e-15)
 
-    return torch.sqrt(alpha**2 * x2 + 2 * alpha * beta * xy + beta**2 * y2) / denom.abs()
+    num = alpha**2 * x2 + 2 * alpha * beta * xy + beta**2 * y2
+    return torch.sqrt(num + 1e-15) / denom.abs()
 
 
 @torch.jit.script
@@ -115,4 +117,5 @@ class MobiusAddNorm(torch.autograd.Function):
 
 
 def mobius_add_norm(x, y, k):
-    return MobiusAddNorm.apply(x, y, k)
+    return _mobius_add_norm(x, y, k)
+    # return MobiusAddNorm.apply(x, y, k)
