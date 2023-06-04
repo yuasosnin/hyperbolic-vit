@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import torch
 from torch import Tensor
 torch.set_printoptions(sci_mode=False)
@@ -22,7 +24,7 @@ def outer(x, y):
 
 
 @torch.jit.script
-def _mobius_add_grad(x: Tensor, y: Tensor, k: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+def _mobius_add_grad(x: Tensor, y: Tensor, k: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
     d = x.shape[-1]
     x2 = x.pow(2).sum(dim=-1, keepdim=True)
     y2 = y.pow(2).sum(dim=-1, keepdim=True)
@@ -88,7 +90,7 @@ def _mobius_add_norm(x: Tensor, y: Tensor, k: Tensor, keepdim: bool = False) -> 
 
 
 @torch.jit.script
-def _mobius_add_norm_grad(x, y, k) -> tuple[Tensor, Tensor, Tensor]:
+def _mobius_add_norm_grad(x, y, k) -> Tuple[Tensor, Tensor, Tensor]:
     # we don't differentiate forward but rather use chain rule for norm
     # which is probably what causes CUDA out of memory
     add = _mobius_add(x, y, k)
