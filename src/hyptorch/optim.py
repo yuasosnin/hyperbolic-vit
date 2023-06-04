@@ -67,7 +67,7 @@ class RiemannianAdamW(RiemannianAdam):
                     # get the direction for ascend
                     direction = exp_avg.div(bias_correction1) / denom.add_(eps)
                     # Add decayed weights as per AdamW
-                    update = -learning_rate * direction + weight_decay * point
+                    update = -learning_rate * (direction + weight_decay * point)
                     # transport the exponential averaging to the new point
                     new_point, exp_avg_new = manifold.retr_transp(
                         point, update, exp_avg
