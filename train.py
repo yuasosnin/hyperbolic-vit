@@ -30,9 +30,9 @@ def get_trainer(epochs, distance):
     logger = WandbLogger(project="metric-learning")
     metric_callback = MetricValCallback(
         metric=EmbeddingMetrics(
-            cmc_top_k=(1,5),
-            precision_top_k=(1,5),
-            map_top_k=(1,5),
+            cmc_top_k=(1,2,4,8),
+            precision_top_k=(1,2,4,8),
+            map_top_k=(1,2,4,8),
             distance=distance))
     trainer = Trainer(
         max_epochs=epochs,
@@ -40,7 +40,6 @@ def get_trainer(epochs, distance):
         callbacks=[metric_callback],
         check_val_every_n_epoch=5,
         num_sanity_val_steps=0,
-        accumulate_grad_batches=10,
         accelerator="auto",
         precision=16,
         inference_mode=False)
