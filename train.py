@@ -125,7 +125,7 @@ class ModelInitializer:
         model = self.compile_if_linux(model)
         miner = self.get_miner(self.miner_type)
         criterion = TripletLossWithMiner(distance=distance, margin=self.margin, miner=miner)
-        optimizer = RiemannianAdam(model.parameters(), lr=self.lr, weight_decay=self.wd)
+        optimizer = self.get_optimizer_type(self.opt_name)(model.parameters(), lr=self.lr, weight_decay=self.wd)
         return RetrievalModule(model, criterion, optimizer), distance
 
     def init_hyperbolic_proj_model(self):
@@ -139,7 +139,7 @@ class ModelInitializer:
         model = self.compile_if_linux(model)
         miner = self.get_miner(self.miner_type)
         criterion = TripletLossWithMiner(distance=distance, margin=self.margin, miner=miner)
-        optimizer = RiemannianAdam(model.parameters(), lr=self.lr, weight_decay=self.wd)
+        optimizer = self.get_optimizer_type(self.opt_name)(model.parameters(), lr=self.lr, weight_decay=self.wd)
         return RetrievalModule(model, criterion, optimizer), distance
 
     def init_model(self):
@@ -159,7 +159,7 @@ def get_parsed_args():
     parser.add_argument('--model_class', type=str, default="eucledian")
 
 
-    parser.add_argument('-e', '--epochs', type=int, default=300)
+    parser.add_argument('-e', '--epochs', type=int, default=30)
     parser.add_argument('-bs', '--batch_size', type=int, default=512)
     parser.add_argument('-lr', '--lr', type=float, default=1e-5)
     parser.add_argument('-wd', '--weight_decay', type=float, default=1e-2)
