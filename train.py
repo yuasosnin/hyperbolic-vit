@@ -15,25 +15,22 @@ from oml.miners.inbatch_hard_tri import HardTripletsMiner
 from oml.models.vit.vit import ViTExtractor
 from oml.distances import EucledianDistance
 
-from geoopt.optim import RiemannianAdam
-
-from src.data import CARS196DataModule
+from src.hyptorch.optim import RiemannianAdam, RiemannianAdamW
+from src.data import CARS196DataModule, CUB200DataModule
 from src.hyptorch import ExponentialMap, PoincareBall
-from src.oml.distances import PoincareBallDistance
+from src.oml.distances import PoincareBallDistance, DotProcuctDistance
 from src.oml.extractor import HViTExtractor
+from src.hyptorch.layers import Normalize
+
 
 import warnings
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
 
 
-def get_trainer(epochs, distance):
+def get_trainer(distance, epochs=300, precision=64):
     logger = WandbLogger(project="metric-learning")
     metric_callback = MetricValCallback(
-        metric=EmbeddingMetrics(
-            cmc_top_k=(1,2,4,8),
-            precision_top_k=(1,2,4,8),
-            map_top_k=(1,2,4,8),
-            distance=distance))
+        metric=EmbeddingMetrics(cmc_top_k=(1,2,4,8), distance=distance))
     trainer = Trainer(
         max_epochs=epochs,
         logger=logger,
@@ -41,44 +38,185 @@ def get_trainer(epochs, distance):
         check_val_every_n_epoch=5,
         num_sanity_val_steps=0,
         accelerator="auto",
-        precision=16,
+        precision=precision,
         inference_mode=False)
     return trainer
 
-def get_data(n_labels, n_instances, num_workers=0, batch_size=16):
+
+def get_data(n_labels, n_instances, dataset="cars", num_workers=0, batch_size=512):
     data_folder = "./data"
-    return CARS196DataModule(
+    if dataset == "cars":
+        datset_type = CARS196DataModule
+    elif dataset == "cub":
+        datset_type = CUB200DataModule
+    else:
+        raise ValueError()
+    return datset_type(
         data_folder,
         n_labels=n_labels,
         n_instances=n_instances,
         batch_size=batch_size,
         num_workers=num_workers)
 
-def get_model():
-    manifold = PoincareBall(c=1.0, clip_factor=None)
-    distance = PoincareBallDistance(manifold)
-    # model = nn.Sequential(
-    #     ViTExtractor(arch="vits16", weights="vits16_dino"),
-    #     nn.Linear(384, 64, bias=False),
-    #     ExponentialMap(manifold)
-    # )
-    model = HViTExtractor(arch="hvits16", weights="vits16_dino", strict_load=False)
-    if platform.system() == "Linux":
-        model: nn.Module = torch.compile(model)
-    criterion = TripletLossWithMiner(distance=distance, margin=0.1, miner=AllTripletsMiner())
-    optimizer = RiemannianAdam(model.parameters(), lr=1e-5)
 
-    return RetrievalModule(model, criterion, optimizer), distance
+class ModelInitializer:
+    def __init__(
+            self,
+            model_class="eucledian",
+            margin=0.1,
+            lr=1e-5,
+            wd=1e-2,
+            opt_name="adamw",
+            miner_type="all",
+            c=0.1,
+            clip_factor=2.3
+        ):
+        self.model_class = model_class
+        self.margin = margin
+        self.lr = lr
+        self.wd = wd
+        self.opt_name = opt_name
+        self.miner_type = miner_type
+        self.c = c
+        self.clip_factor = clip_factor
 
-if __name__ == "__main__":
-    seed_everything(1)
+    @staticmethod
+    def compile_if_linux(model: nn.Module) -> nn.Module:
+        if platform.system() == "Linux":
+            return torch.compile(model)
+        return model
 
-    pl_data = get_data(n_labels=5, n_instances=20, num_workers=0, batch_size=512)
-    pl_model, distance = get_model()
-    trainer = get_trainer(epochs=100, distance=distance)
+    @staticmethod
+    def get_optimizer_type(name):
+        if name == "adamw":
+            return AdamW
+        elif name == "radamw":
+            return RiemannianAdamW
+        elif name == "radam":
+            return RiemannianAdam
+        else:
+            raise ValueError("Unknown name")
+
+    @staticmethod
+    def get_miner(name):
+        if name == "all":
+            return AllTripletsMiner()
+        elif name == "hard":
+            return HardTripletsMiner()
+        else:
+            raise ValueError("Unknown name")
+
+    def init_eucledian_model(self):
+        distance = DotProcuctDistance()
+        model = nn.Sequential(
+            ViTExtractor(arch="vits16", weights="vits16_dino"),
+            Normalize(p=2),
+        )
+        model = self.compile_if_linux(model)
+        miner = self.get_miner(self.miner_type)
+        criterion = TripletLossWithMiner(distance=distance, margin=self.margin, miner=miner)
+        optimizer = self.get_optimizer_type(self.opt_name)(model.parameters(), lr=self.lr, weight_decay=self.wd)
+        return RetrievalModule(model, criterion, optimizer), distance
+
+    def init_fully_hyperbolic_model(self):
+        manifold = PoincareBall(c=self.c, clip_factor=self.clip_factor)
+        distance = PoincareBallDistance(manifold)
+        model = HViTExtractor(arch="hvits16", weights="vits16_dino", strict_load=False)
+        model = self.compile_if_linux(model)
+        miner = self.get_miner(self.miner_type)
+        criterion = TripletLossWithMiner(distance=distance, margin=self.margin, miner=miner)
+        optimizer = RiemannianAdam(model.parameters(), lr=self.lr, weight_decay=self.wd)
+        return RetrievalModule(model, criterion, optimizer), distance
+
+    def init_hyperbolic_proj_model(self):
+        manifold = PoincareBall(c=self.c, clip_factor=self.clip_factor)
+        distance = PoincareBallDistance(manifold)
+        model = nn.Sequential(
+            ViTExtractor(arch="vits16", weights="vits16_dino"),
+            nn.Linear(384, 128, bias=False),
+            ExponentialMap(manifold)
+        )
+        model = self.compile_if_linux(model)
+        miner = self.get_miner(self.miner_type)
+        criterion = TripletLossWithMiner(distance=distance, margin=self.margin, miner=miner)
+        optimizer = RiemannianAdam(model.parameters(), lr=self.lr, weight_decay=self.wd)
+        return RetrievalModule(model, criterion, optimizer), distance
+
+    def init_model(self):
+        if self.model_class == "eucledian":
+            return self.init_eucledian_model()
+        elif self.model_class == "projection":
+            return self.init_hyperbolic_proj_model()
+        elif self.model_class == "full":
+            return self.init_fully_hyperbolic_model()
+        else:
+            raise ValueError("Invalid model class")
+
+
+def get_parsed_args():
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument('--model_class', type=str, default="eucledian")
+
+
+    parser.add_argument('-e', '--epochs', type=int, default=300)
+    parser.add_argument('-bs', '--batch_size', type=int, default=512)
+    parser.add_argument('-lr', '--lr', type=float, default=1e-5)
+    parser.add_argument('-wd', '--weight_decay', type=float, default=1e-2)
+
+    parser.add_argument('--margin', type=float, default=0.1)
+    parser.add_argument('--opt_name', type=str, default="adamw")
+    parser.add_argument('--miner_type', type=str, default="all")
+    parser.add_argument('--c', type=float, default=0.1)
+    parser.add_argument('--clip_factor', type=float, default=2.3)
+
+    parser.add_argument('--n_labels', type=int, default=5)
+    parser.add_argument('--n_instances', type=int, default=20)
+    parser.add_argument('--precision', type=int, default=16)
+    parser.add_argument('--dataset', type=str, default="cub")
+
+    args = parser.parse_args()
+    return vars(args)
+
+
+def main(
+        epochs,
+        batch_size,
+        precision,
+        model_class,
+        margin,
+        lr,
+        weight_decay,
+        opt_name,
+        miner_type,
+        c,
+        clip_factor,
+        n_labels,
+        n_instances,
+        dataset
+    ):
+    initialier = ModelInitializer(
+        model_class=model_class,
+        margin=margin,
+        lr=lr,
+        wd=weight_decay,
+        opt_name=opt_name,
+        miner_type=miner_type,
+        c=c,
+        clip_factor=clip_factor)
+    pl_model, distance = initialier.init_model()
+    pl_data = get_data(
+        n_labels=n_labels, n_instances=n_instances, dataset=dataset, num_workers=0, batch_size=batch_size)
+    trainer = get_trainer(
+        distance=distance, epochs=epochs, precision=precision)
 
     trainer.fit(
         pl_model,
         train_dataloaders=pl_data.train_dataloader(),
         val_dataloaders=pl_data.test_dataloader()
     )
+
+if __name__ == "__main__":
+    args = get_parsed_args()
+    seed_everything(1)
+    main(**args)

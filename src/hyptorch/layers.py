@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch import Tensor
 
 from geoopt import ManifoldParameter
 from src.hyptorch.manifold import PoincareBall
@@ -24,7 +25,7 @@ class HyperbolicLinear(nn.Linear):
         if self.bias is not None:
             self.bias = ManifoldParameter(self.bias, manifold=self.ball)
 
-    def forward(self, input):
+    def forward(self, input: Tensor) -> Tensor:
         output = self.ball.mobius_matvec(self.weight, input)
         if self.bias is not None:
             output = self.ball.mobius_add(output, self.bias)
@@ -103,3 +104,14 @@ class LogarithmicMap(nn.Module):
         if u is not None:
             return self.ball.logmap(x, u)
         return self.ball.logmap0(x)
+
+
+class Normalize(nn.Module):
+    def __init__(self, p: int = 2, dim: int = -1):
+        super().__init__()
+        self.p = p
+        self.dim = dim
+
+    def forward(self, input: Tensor) -> Tensor:
+        input_norm = torch.norm(input, p=self.p, dim=self.dim, keepdim=True)
+        return input / input_norm.detach()

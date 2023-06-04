@@ -28,3 +28,11 @@ class PoincareBallDistance(IDistance):
 
     def pairwise(self, x1: Tensor, x2: Tensor) -> Tensor:
         return self.ball.dist(x1.unsqueeze(-2), x2.unsqueeze(-3))
+
+
+class DotProcuctDistance(IDistance):
+    def elementwise(self, x1: Tensor, x2: Tensor) -> Tensor:
+        return -(x1 * x2).sum(-1)
+
+    def pairwise(self, x1: Tensor, x2: Tensor) -> Tensor:
+        return -(x1 @ x2.transpose(-2, -1))
