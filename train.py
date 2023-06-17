@@ -22,9 +22,15 @@ from src.oml.distances import PoincareBallDistance, DotProcuctDistance
 from src.oml.extractor import HViTExtractor
 from src.hyptorch.layers import Normalize
 
+import timm
 
 import warnings
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
+
+
+def behead(model):
+    model.head = nn.Identity()
+    return model
 
 
 def get_trainer(distance, epochs=300, precision=64):
@@ -63,6 +69,8 @@ class ModelInitializer:
     def __init__(
             self,
             model_class="eucledian",
+            dim=128,
+            weights="vit_small_patch16_224.dino",
             margin=0.1,
             lr=1e-5,
             wd=1e-2,
@@ -72,6 +80,8 @@ class ModelInitializer:
             clip_factor=2.3
         ):
         self.model_class = model_class
+        self.dim = dim
+        self.weights = weights
         self.margin = margin
         self.lr = lr
         self.wd = wd
@@ -109,7 +119,8 @@ class ModelInitializer:
     def init_eucledian_model(self):
         distance = DotProcuctDistance()
         model = nn.Sequential(
-            ViTExtractor(arch="vits16", weights="vits16_dino"),
+            # ViTExtractor(arch="vits16", weights=self.weights),
+            behead(timm.create_model(self.weights, pretrained=True)),
             Normalize(p=2),
         )
         model = self.compile_if_linux(model)
@@ -121,7 +132,7 @@ class ModelInitializer:
     def init_fully_hyperbolic_model(self):
         manifold = PoincareBall(c=self.c, clip_factor=self.clip_factor)
         distance = PoincareBallDistance(manifold)
-        model = HViTExtractor(arch="hvits16", weights="vits16_dino", strict_load=False)
+        model = HViTExtractor(arch="hvits16", weights=self.weights, strict_load=False)
         model = self.compile_if_linux(model)
         miner = self.get_miner(self.miner_type)
         criterion = TripletLossWithMiner(distance=distance, margin=self.margin, miner=miner)
@@ -132,8 +143,9 @@ class ModelInitializer:
         manifold = PoincareBall(c=self.c, clip_factor=self.clip_factor)
         distance = PoincareBallDistance(manifold)
         model = nn.Sequential(
-            ViTExtractor(arch="vits16", weights="vits16_dino"),
-            nn.Linear(384, 128, bias=False),
+            # ViTExtractor(arch="vits16", weights=self.weights),
+            behead(timm.create_model(self.weights, pretrained=True)),
+            nn.Linear(384, self.dim, bias=False),
             ExponentialMap(manifold)
         )
         model = self.compile_if_linux(model)
@@ -157,7 +169,8 @@ def get_parsed_args():
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument('--model_class', type=str, default="eucledian")
-
+    parser.add_argument('--dim', type=int, default=128)
+    parser.add_argument('--weights', type=str, default='vit_small_patch16_224.dino')
 
     parser.add_argument('-e', '--epochs', type=int, default=30)
     parser.add_argument('-bs', '--batch_size', type=int, default=512)
@@ -172,7 +185,7 @@ def get_parsed_args():
 
     parser.add_argument('--n_labels', type=int, default=5)
     parser.add_argument('--n_instances', type=int, default=20)
-    parser.add_argument('--precision', type=int, default=16)
+    parser.add_argument('--precision', type=int, default=32)
     parser.add_argument('--dataset', type=str, default="cub")
 
     args = parser.parse_args()
@@ -184,6 +197,8 @@ def main(
         batch_size,
         precision,
         model_class,
+        dim,
+        weights,
         margin,
         lr,
         weight_decay,
@@ -197,6 +212,8 @@ def main(
     ):
     initialier = ModelInitializer(
         model_class=model_class,
+        dim=dim,
+        weights=weights,
         margin=margin,
         lr=lr,
         wd=weight_decay,
@@ -207,16 +224,30 @@ def main(
     pl_model, distance = initialier.init_model()
     pl_data = get_data(
         n_labels=n_labels, n_instances=n_instances, dataset=dataset, num_workers=0, batch_size=batch_size)
-    trainer = get_trainer(
-        distance=distance, epochs=epochs, precision=precision)
+    logger = WandbLogger(project="metric-learning")
+    metric_callback = MetricValCallback(
+        metric=EmbeddingMetrics(cmc_top_k=(1,2,4,8), distance=distance))
+    trainer = Trainer(
+        max_epochs=epochs,
+        logger=logger,
+        callbacks=[metric_callback],
+        check_val_every_n_epoch=5,
+        num_sanity_val_steps=0,
+        accelerator="auto",
+        precision=precision,
+        inference_mode=False)
+    logger.watch(pl_model)
 
     trainer.fit(
         pl_model,
         train_dataloaders=pl_data.train_dataloader(),
         val_dataloaders=pl_data.test_dataloader()
     )
+    return logger
+
 
 if __name__ == "__main__":
     args = get_parsed_args()
     seed_everything(1)
-    main(**args)
+    logger = main(**args)
+    logger.experiment.config.update(args)
