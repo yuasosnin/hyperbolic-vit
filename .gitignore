@@ -7,3 +7,17 @@ neptune_api
 __*
 !__init__.py
 *.ckpt
+.venv
+.vscode
+
+*.out
+*.fls
+*.aux
+*.log
+*.gz
+*.brg
+*.tar.gz
+*.blg
+*.brf
+*.fdb_latexmk
+*.bbl
