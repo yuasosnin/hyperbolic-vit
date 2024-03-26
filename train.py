@@ -13,12 +13,12 @@ from oml.metrics.embeddings import EmbeddingMetrics
 from oml.miners.inbatch_all_tri import AllTripletsMiner
 from oml.miners.inbatch_hard_tri import HardTripletsMiner
 from oml.models.vit.vit import ViTExtractor
-from oml.distances import EucledianDistance
+from oml.distances import EuclideanDistance
 
 from src.hyptorch.optim import RiemannianAdam, RiemannianAdamW
 from src.data import CARS196DataModule, CUB200DataModule
 from src.hyptorch import ExponentialMap, PoincareBall
-from src.oml.distances import PoincareBallDistance, DotProcuctDistance
+from src.oml.distances import PoincareBallDistance, DotProductDistance
 from src.oml.extractor import HViTExtractor
 from src.hyptorch.layers import Normalize
 
@@ -52,12 +52,12 @@ def get_trainer(distance, epochs=300, precision=64):
 def get_data(n_labels, n_instances, dataset="cars", num_workers=0, batch_size=512):
     data_folder = "./data"
     if dataset == "cars":
-        datset_type = CARS196DataModule
+        dataset_type = CARS196DataModule
     elif dataset == "cub":
-        datset_type = CUB200DataModule
+        dataset_type = CUB200DataModule
     else:
         raise ValueError()
-    return datset_type(
+    return dataset_type(
         data_folder,
         n_labels=n_labels,
         n_instances=n_instances,
@@ -68,7 +68,7 @@ def get_data(n_labels, n_instances, dataset="cars", num_workers=0, batch_size=51
 class ModelInitializer:
     def __init__(
             self,
-            model_class="eucledian",
+            model_class="euclidean",
             dim=128,
             weights="vit_small_patch16_224.dino",
             margin=0.1,
@@ -116,8 +116,8 @@ class ModelInitializer:
         else:
             raise ValueError("Unknown name")
 
-    def init_eucledian_model(self):
-        distance = DotProcuctDistance()
+    def init_euclidean_model(self):
+        distance = DotProductDistance()
         model = nn.Sequential(
             # ViTExtractor(arch="vits16", weights=self.weights),
             behead(timm.create_model(self.weights, pretrained=True)),
@@ -155,8 +155,8 @@ class ModelInitializer:
         return RetrievalModule(model, criterion, optimizer), distance
 
     def init_model(self):
-        if self.model_class == "eucledian":
-            return self.init_eucledian_model()
+        if self.model_class == "euclidean":
+            return self.init_euclidean_model()
         elif self.model_class == "projection":
             return self.init_hyperbolic_proj_model()
         elif self.model_class == "full":
@@ -168,7 +168,7 @@ class ModelInitializer:
 def get_parsed_args():
     from argparse import ArgumentParser
     parser = ArgumentParser()
-    parser.add_argument('--model_class', type=str, default="eucledian")
+    parser.add_argument('--model_class', type=str, default="euclidean")
     parser.add_argument('--dim', type=int, default=128)
     parser.add_argument('--weights', type=str, default='vit_small_patch16_224.dino')
 
@@ -210,7 +210,7 @@ def main(
         n_instances,
         dataset
     ):
-    initialier = ModelInitializer(
+    initializer = ModelInitializer(
         model_class=model_class,
         dim=dim,
         weights=weights,
@@ -221,7 +221,7 @@ def main(
         miner_type=miner_type,
         c=c,
         clip_factor=clip_factor)
-    pl_model, distance = initialier.init_model()
+    pl_model, distance = initializer.init_model()
     pl_data = get_data(
         n_labels=n_labels, n_instances=n_instances, dataset=dataset, num_workers=0, batch_size=batch_size)
     logger = WandbLogger(project="metric-learning")

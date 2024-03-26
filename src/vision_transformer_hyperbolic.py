@@ -6,8 +6,6 @@ import torch.nn as nn
 from src.hyptorch import PoincareBall, HyperbolicLinear, HyperbolicDistanceAttention, HyperbolicActivation
 from src.vision_transformer import DropPath, PatchEmbed, VisionTransformer
 
-# TODO: maybe make pos embedding ManifoldParameter?
-
 
 class HypMlp(nn.Module):
     def __init__(

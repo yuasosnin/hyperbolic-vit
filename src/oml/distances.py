@@ -30,7 +30,7 @@ class PoincareBallDistance(IDistance):
         return self.ball.dist(x1.unsqueeze(-2), x2.unsqueeze(-3))
 
 
-class DotProcuctDistance(IDistance):
+class DotProductDistance(IDistance):
     def elementwise(self, x1: Tensor, x2: Tensor) -> Tensor:
         return -(x1 * x2).sum(-1)
 
