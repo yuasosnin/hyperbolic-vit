@@ -1,0 +1,3 @@
+# Hyperbolic Vision Transformers
+
+This paper evaluates the hyperbolic embeddings methodology proposed by [Ermolov et al.](https://arxiv.org/abs/2203.10833) within a metric learning framework, employing the vanilla Triplet loss. While we do not achieve state-of-the-art results, we demonstrate that Hyperbolic embeddings can outperform standard Euclidean embeddings in some scenarios even with minimal adjustments to default metric learning pipeline. Additionally, we propose a fully Hyperbolic Vision Transformer operating on the hyperbolic patch space. We do not obtain training results, leaving it as future work for exploration.

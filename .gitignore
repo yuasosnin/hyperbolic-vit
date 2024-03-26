@@ -3,9 +3,9 @@ metric-learning/
 lightning_logs/
 data/
 wandb/
-neptune_api
-__*
-!__init__.py
+text/defence
+text/submission
+text/examples
 *.ckpt
 .venv
 .vscode
